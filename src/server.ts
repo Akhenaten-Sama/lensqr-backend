@@ -1,7 +1,10 @@
 import { env } from './config/environment';
 import createApp from './app';
+import { registerRoutes } from './routes';
 
 const app = createApp();
+registerRoutes(app);
+
 const PORT = env.PORT;
 
 app.listen(PORT, () => {
