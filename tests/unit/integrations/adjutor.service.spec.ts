@@ -70,5 +70,52 @@ describe('AdjutorService', () => {
 
       expect(result).toBe(false);
     });
+
+    it('returns false (fail-open) when Adjutor returns a 500 server error', async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: { status: 500, data: { message: 'Internal Server Error' } },
+        message: 'Request failed with status code 500',
+      };
+
+      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockClient.get = jest.fn().mockRejectedValue(axiosError);
+
+      const result = await adjutorService.isBlacklisted('user@example.com');
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false (fail-open) when the request times out', async () => {
+      const timeoutError = {
+        isAxiosError: true,
+        code: 'ECONNABORTED',
+        message: 'timeout of 10000ms exceeded',
+        response: undefined,
+      };
+
+      mockedAxios.isAxiosError.mockReturnValue(true);
+      mockClient.get = jest.fn().mockRejectedValue(timeoutError);
+
+      const result = await adjutorService.isBlacklisted('user@example.com');
+
+      expect(result).toBe(false);
+    });
+
+    it('URL-encodes special characters in the identity parameter', async () => {
+      const response: KarmaLookupResponse = {
+        status: 'success',
+        message: 'Identity not found',
+        data: null,
+      };
+
+      mockClient.get = jest.fn().mockResolvedValue(response);
+
+      await adjutorService.isBlacklisted('user+test@example.com');
+
+      expect(mockClient.get).toHaveBeenCalledWith(
+        '/v2/verification/karma/user%2Btest%40example.com',
+      );
+    });
   });
 });
