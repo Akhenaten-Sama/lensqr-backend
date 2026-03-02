@@ -32,10 +32,19 @@ export function globalErrorHandler(
     return;
   }
 
-  // Unhandled / unexpected errors — never expose internals in production
+  // Unhandled / unexpected errors
+  // In development, surface the real message to aid debugging.
+  // In production, never expose internals.
+  const isDev = process.env['NODE_ENV'] !== 'production';
+  // eslint-disable-next-line no-console
+  console.error('[Unhandled error]', error);
+
   res.status(500).json({
     status: 'error',
-    message: 'An unexpected error occurred. Please try again later.',
+    message: isDev
+      ? error.message ?? 'An unexpected error occurred.'
+      : 'An unexpected error occurred. Please try again later.',
     error_code: 'INTERNAL_SERVER_ERROR',
+    ...(isDev && { stack: error.stack }),
   });
 }
