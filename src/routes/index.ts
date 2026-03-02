@@ -9,6 +9,10 @@ import { swaggerSpec } from '../config/swagger';
 export function registerRoutes(app: Application): void {
   const apiRouter = Router();
 
+  apiRouter.get('/', (_req, res) => {
+    res.json({ status: 'ok', message: 'Demo Credit API v1', docs: '/api/docs' });
+  });
+
   apiRouter.use('/users', createUserRouter(userController, authenticate));
   apiRouter.use('/wallets', createWalletRouter(walletController, authenticate));
 
