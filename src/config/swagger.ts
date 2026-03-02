@@ -16,6 +16,10 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
+        url: 'https://olalekanefunkunle-lendsqr-be-test.up.railway.app/api/v1',
+        description: 'Production server (Railway)',
+      },
+      {
         url: 'http://localhost:3000/api/v1',
         description: 'Local development server',
       },
@@ -186,8 +190,8 @@ const options: swaggerJsdoc.Options = {
     ],
   },
   apis: [
-    path.join(__dirname, '../modules/users/user.routes.ts'),
-    path.join(__dirname, '../modules/wallets/wallet.routes.ts'),
+    path.join(__dirname, '../modules/users/user.routes.{ts,js}'),
+    path.join(__dirname, '../modules/wallets/wallet.routes.{ts,js}'),
   ],
 };
 
