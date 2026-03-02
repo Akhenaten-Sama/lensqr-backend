@@ -16,4 +16,5 @@ export interface KarmaLookupResponse {
   status: string;
   message: string;
   data: KarmaIdentity | null;
+  'mock-response'?: string;
 }

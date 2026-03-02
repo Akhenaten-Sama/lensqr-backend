@@ -18,6 +18,10 @@ export class AdjutorService {
       const response = await this.client.get<KarmaLookupResponse>(
         `/v2/verification/karma/${encodeURIComponent(identity)}`,
       );
+      // Adjutor test/mock mode returns a synthetic non-null data payload for
+      // every identity. Treat mock responses as fail-open so test-mode apps
+      // are not accidentally blocked from onboarding users.
+      if (response['mock-response']) return false;
       // A non-null data field means the identity is on the blacklist
       return response.data !== null;
     } catch (error) {
