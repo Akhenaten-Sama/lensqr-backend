@@ -1,7 +1,8 @@
 import type { Knex } from 'knex';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const knexConfig: Record<string, Knex.Config> = {
   development: {
@@ -14,7 +15,7 @@ const knexConfig: Record<string, Knex.Config> = {
       password: process.env['DB_PASSWORD'] ?? '',
     },
     migrations: {
-      directory: './src/database/migrations',
+      directory: path.resolve(__dirname, 'migrations'),
       extension: 'ts',
     },
     pool: {
@@ -33,7 +34,7 @@ const knexConfig: Record<string, Knex.Config> = {
       password: process.env['DB_PASSWORD'] ?? '',
     },
     migrations: {
-      directory: './src/database/migrations',
+      directory: path.resolve(__dirname, 'migrations'),
       extension: 'ts',
     },
     pool: {
@@ -53,7 +54,7 @@ const knexConfig: Record<string, Knex.Config> = {
       ssl: { rejectUnauthorized: true },
     },
     migrations: {
-      directory: './src/database/migrations',
+      directory: path.resolve(__dirname, 'migrations'),
       extension: 'ts',
     },
     pool: {

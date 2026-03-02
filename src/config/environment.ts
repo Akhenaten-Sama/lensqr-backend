@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+// Resolve .env from the project root regardless of the working directory
+// that ts-node-dev or the compiled process is started from.
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 interface EnvironmentConfig {
   NODE_ENV: string;
