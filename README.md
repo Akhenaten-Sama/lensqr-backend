@@ -7,15 +7,14 @@ A wallet service. Users can create accounts, fund wallets, transfer funds to oth
 ## Tech Stack
 
 
-
- Runtime: Node.js LTS (v20+) 
- Language: TypeScript 5 
- Framework : Express 4 
- ORM :KnexJS 
- Database :MySQL 8 
- Validation : Joi 
- Testing : Jest + ts-jest 
- Auth : Faux token (no JWT) 
+| Runtime => Node.js LTS (v20+) |
+| Language => TypeScript 5 |
+| Framework => Express 4 |
+| ORM => KnexJS |
+| Database =>  MySQL 8 |
+| Validation => Joi |
+| Testing => Jest + ts-jest |
+| Auth => Faux token (base64 userId + random hex, stored in DB) |
 
 ---
 
@@ -136,7 +135,7 @@ Authorization: Bearer <token>
 ### Error Codes
 
 | HTTP Status | error_code | Description |
-|---|---|---|
+
 | 400 | BAD_REQUEST | Validation failure |
 | 401 | UNAUTHORIZED | Missing or invalid token |
 | 403 | USER_BLACKLISTED | Identity on Karma blacklist |
@@ -205,20 +204,69 @@ During user registration the service calls the Lendsqr Adjutor Karma API:
 GET https://adjutor.lendsqr.com/v2/verification/karma/{identity}
 ```
 
-- `200` with `data !== null` → user is blacklisted → registration blocked (`403`)
-- `404` → identity is clean → registration proceeds
-- `5xx` / timeout → **fail-open** — registration proceeds, error is logged
+| Adjutor response | Meaning | Outcome |
 
-This fail-open strategy prevents a third-party outage from locking all new signups.
+| `200` with `data !== null` | Identity is on the blacklist | Registration blocked `403 USER_BLACKLISTED` |
+| `404` | Identity not found — user is clean | Registration proceeds |
+| `5xx` / timeout | Adjutor is unavailable | **Fail-open** — registration proceeds |
+| `200` with `"mock-response"` key | App is in Adjutor test mode | Treated as fail-open (not blacklisted) |
+
+**Fail-open strategy:** A third-party outage never blocks new signups. The risk of occasionally onboarding a blacklisted user during an outage is lower than the risk of locking all registrations.
+
+**Adjutor test mode:** When the Adjutor app has not yet completed KYC, the API returns a synthetic `"mock-response"` field with a fake karma payload for every identity. The service detects this key and treats the response as fail-open rather than incorrectly flagging every user as blacklisted. Once the app is toggled to live mode, the real response (404 = clean, 200 with data = blacklisted) takes effect automatically — no code change needed.
 
 ---
 
 ## Transaction Design
 
-- **`SELECT FOR UPDATE`** locks are acquired on wallets before any balance read-modify-write, preventing race conditions in concurrent requests.
-- **`reference`** (unique) acts as an idempotency key — submitting the same reference twice will fail at the DB constraint rather than double-debiting.
-- **`balance_before` / `balance_after`** on every transaction record enables a full audit trail without summing all historical rows.
-- All money values use `DECIMAL(15,2)` — never `FLOAT`.
+### Row Locking — Concurrent Request Safety
+
+Every balance-modifying operation acquires a `SELECT FOR UPDATE` lock on the wallet row(s) inside a database transaction before reading the balance:
+
+```
+fundWallet   → locks user's wallet row
+withdraw     → locks user's wallet row
+transfer     → locks sender's wallet row, then recipient's wallet row
+```
+
+This prevents lost updates: if two concurrent withdrawal requests race, the second one sees the already-reduced balance after the first commits and fails with `422 Insufficient balance` rather than both succeeding.
+
+### Idempotency — Duplicate Transaction Prevention
+
+Every fund, transfer, and withdraw request requires a caller-supplied `reference` (max 100 chars). The `transactions` table enforces a `UNIQUE` constraint on this column.
+
+- Submitting the same reference twice → MySQL `ER_DUP_ENTRY` → `409 DUPLICATE_ENTRY`
+- The balance is **never touched twice** — the constraint fires before any balance update
+- Callers can safely retry failed requests with the same reference without risk of double-debit
+
+### Overdraft Prevention
+
+Balance checks run **after** the row lock is acquired, ensuring the check is always against the latest committed balance:
+
+```
+withdraw / transfer:  if (balance < amount) → 422 Insufficient balance
+```
+
+The Joi validators additionally reject `amount ≤ 0` at the HTTP layer before any database work occurs.
+
+### Audit Trail
+
+Every transaction record stores `balance_before` and `balance_after`, giving a complete point-in-time snapshot without summing historical rows. Transfer operations create two records — a `DEBIT` on the sender and a `CREDIT` on the recipient — both linked via `counterpart_wallet_id`.
+
+### Money Precision
+
+All monetary values use `DECIMAL(15,2)` in the database and are never stored as `FLOAT` or `DOUBLE`, which would introduce rounding errors in financial calculations.
+
+---
+
+## Security & Rate Limiting
+
+- **Rate limiting:** 100 requests per 15 minutes per IP (via `express-rate-limit`). Protects against brute-force and abuse.
+- **Helmet:** HTTP security headers set on every response.
+- **Password hashing:** bcryptjs with 10 salt rounds.
+- **Token revocation:** Auth tokens are stored in the database — logging in generates a new token and invalidates the previous one.
+- **Input sanitisation:** Joi schemas strip unknown fields from all request bodies, preventing mass-assignment attacks.
+- **Sensitive field stripping:** `password_hash`, `token`, and `is_blacklisted` are never returned in API responses.
 
 ---
 
