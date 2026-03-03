@@ -48,6 +48,11 @@ Relationships:
 ---
 
 ## API Reference
+Postman Collection Url
+
+https://www.postman.com/olalekan-efunkunle/demo-wallet/collection/41097181-57782465-8ef9-4686-923b-a8c215c32d4e?action=share&source=copy-link&creator=41097181
+
+
 Swagger documentation used also, but the reference is below.
 
 **Base URL**: `http://localhost:3000/api/v1`

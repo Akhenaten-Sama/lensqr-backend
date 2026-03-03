@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add package.json tsconfig.json)",
+      "Bash(git commit:*)",
+      "Bash(git add .eslintrc.js .prettierrc .prettierignore)",
+      "Bash(git add .gitignore .env.example)"
+    ]
+  }
+}
